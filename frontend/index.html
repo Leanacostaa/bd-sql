@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TiendaSimpleDB - Gestión de Inventario</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        h1 { font-size: 1.8rem; color: var(--text-main); }
+        p.subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; }
+
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .layout-grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Tabla de Productos */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        tr.selected {
+            background-color: #eff6ff;
+        }
+
+        .badge-stock {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* Formulario y Detalle de Stock */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.3rem;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .alert-success {
+            display: none;
+            background-color: #dcfce7;
+            color: var(--success);
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>TiendaSimpleDB — Inventario Multisucursal</h1>
+        <p class="subtitle">Gestión de Catálogo General y Asignación de Stock por Depósito</p>
+    </header>
+
+    <div class="layout-grid">
+        <!-- SECCIÓN IZQUIERDA: Catálogo de Productos -->
+        <section class="card">
+            <div class="card-title">
+                <span>Catálogo de Productos</span>
+                <button class="btn" onclick="cargarProductos()">↻ Actualizar Lista</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock Total</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-productos">
+                    <tr><td colspan="6" style="text-align:center;">Cargando productos...</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- SECCIÓN DERECHA: Modificar Stock por Depósito -->
+        <section class="card">
+            <div class="card-title">
+                <span>Gestión de Stock por Depósito</span>
+            </div>
+
+            <div id="panel-seleccion" style="color: var(--text-muted); font-size: 0.9rem;">
+                👈 Seleccioná un producto del catálogo para ver y modificar sus existencias por nave física.
+            </div>
+
+            <div id="panel-stock" style="display: none;">
+                <h3 id="producto-seleccionado-nombre" style="margin-bottom: 0.5rem; color: var(--primary);"></h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">ID: <span id="producto-seleccionado-id"></span></p>
+
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Existencias Actuales:</h4>
+                <div id="lista-stock-depositos" style="margin-bottom: 1.5rem;"></div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin-bottom: 1rem;">
+
+                <form id="form-actualizar-stock" onsubmit="guardarStock(event)">
+                    <div class="form-group">
+                        <label for="deposito-select">Seleccionar Depósito</label>
+                        <select id="deposito-select" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nueva-cantidad">Nueva Cantidad de Stock</label>
+                        <input type="number" id="nueva-cantidad" min="0" placeholder="Ej. 25" required>
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%;">Guardar Asignación de Stock</button>
+                </form>
+
+                <div id="alerta-exito" class="alert-success">
+                    ✅ ¡Stock actualizado correctamente!
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let productoSeleccionadoId = null;
+
+        // Cargar datos al iniciar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProductos();
+        });
+
+        // 1. Obtener la lista de productos
+        async function cargarProductos() {
+            try {
+                const res = await fetch(`${API_URL}/productos`);
+                const productos = await res.json();
+                
+                const tbody = document.getElementById('tabla-productos');
+                tbody.innerHTML = '';
+
+                if (productos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay productos registrados.</td></tr>';
+                    return;
+                }
+
+                productos.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.id = `fila-prod-${p.ProductoId}`;
+                    tr.innerHTML = `
+                        <td>${p.ProductoId}</td>
+                        <td><strong>${p.Nombre}</strong></td>
+                        <td>${p.Categoria}</td>
+                        <td>$${parseFloat(p.Precio).toFixed(2)}</td>
+                        <td><span class="badge-stock">${p.StockTotal} u.</span></td>
+                        <td>
+                            <button class="btn" onclick="seleccionarProducto(${p.ProductoId}, '${p.Nombre}')">
+                                Gest. Stock
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error('Error al cargar productos:', err);
+                alert('No se pudo conectar con el servidor Backend.');
+            }
+        }
+
+        // 2. Seleccionar producto para ver y editar su stock en depósitos (RI04)
+        async function seleccionarProducto(id, nombre) {
+            productoSeleccionadoId = id;
+
+            // Highlight visual en la tabla
+            document.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+            const fila = document.getElementById(`fila-prod-${id}`);
+            if (fila) fila.classList.add('selected');
+
+            // Actualizar vista derecha
+            document.getElementById('panel-seleccion').style.display = 'none';
+            document.getElementById('panel-stock').style.display = 'block';
+            document.getElementById('producto-seleccionado-nombre').textContent = nombre;
+            document.getElementById('producto-seleccionado-id').textContent = id;
+
+            await cargarStockProducto(id);
+        }
+
+        // 3. Consultar stock del producto en cada depósito
+        async function cargarStockProducto(id) {
+            try {
+                const res = await fetch(`${API_URL}/stock/producto/${id}`);
+                const depositos = await res.json();
+
+                const contenedor = document.getElementById('lista-stock-depositos');
+                const selectDeposito = document.getElementById('deposito-select');
+
+                contenedor.innerHTML = '';
+                selectDeposito.innerHTML = '<option value="">-- Seleccionar Depósito --</option>';
+
+                depositos.forEach(d => {
+                    // Renderizar lista de estado
+                    const item = document.createElement('div');
+                    item.className = 'stock-item';
+                    item.innerHTML = `
+                        <span><strong>${d.Deposito}</strong> (${d.Ubicacion})</span>
+                        <span class="badge-stock" style="background-color: #f3f4f6; color: #1f2937;">${d.CantidadStock} u.</span>
+                    `;
+                    contenedor.appendChild(item);
+
+                    // Llenar select del formulario
+                    const opt = document.createElement('option');
+                    opt.value = d.DepositoId;
+                    opt.textContent = `${d.Deposito} (Actual: ${d.CantidadStock})`;
+                    selectDeposito.appendChild(opt);
+                });
+
+            } catch (err) {
+                console.error('Error al obtener stock:', err);
+            }
+        }
+
+        // 4. Enviar actualización de stock (POST a la API)
+        async function guardarStock(event) {
+            event.preventDefault();
+
+            const depositoId = document.getElementById('deposito-select').value;
+            const cantidad = document.getElementById('nueva-cantidad').value;
+
+            if (!productoSeleccionadoId || !depositoId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/stock/actualizar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ProductoId: parseInt(productoSeleccionadoId, 10),
+                        DepositoId: parseInt(depositoId, 10),
+                        CantidadStock: parseInt(cantidad, 10)
+                    })
+                });
+
+                if (response.ok) {
+                    // Mostrar mensaje de confirmación
+                    const alerta = document.getElementById('alerta-exito');
+                    alerta.style.display = 'block';
+                    setTimeout(() => alerta.style.display = 'none', 3000);
+
+                    // Resetear inputs del form
+                    document.getElementById('nueva-cantidad').value = '';
+
+                    // Recargar vistas actualizadas
+                    await cargarStockProducto(productoSeleccionadoId);
+                    await cargarProductos();
+                } else {
+                    alert('Error al actualizar el stock');
+                }
+            } catch (err) {
+                console.error('Error al guardar stock:', err);
+            }
+        }
+    </script>
+</body>
+</html>
