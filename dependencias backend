@@ -1,0 +1,3 @@
+npm init -y
+npm install express mssql dotenv cors
+npm install --save-dev nodemon
