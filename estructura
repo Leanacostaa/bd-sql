@@ -1,0 +1,12 @@
+backend/
+├── config/
+│   └── db.js          # Conexión a SQL Server
+├── controllers/
+│   ├── productoController.js
+│   └── stockController.js
+├── routes/
+│   ├── productoRoutes.js
+│   └── stockRoutes.js
+├── .env               # Variables de entorno
+├── app.js             # Punto de entrada de Express
+└── package.json
